@@ -11,6 +11,9 @@ export class GameRoom extends Room<GameRoomState> {
     roundDuration: number = 60_000;
 
     async onCreate(options: any) {
+        await this.randomGame();
+        console.log(`random game: ${this.game.name}`);
+
         this.onMessage('start_round', (client, data) => {
             if (this.state.everyoneReady) {
                 this.randomGame().then(() => {
@@ -107,7 +110,7 @@ export class GameRoom extends Room<GameRoomState> {
      * Find a random game and assign it to the room
      */
     async randomGame() {
-        const response = await fetch('http://gamdle-royale.test');
+        const response = await fetch('http://gamdle-royale.test/api/v1/random-game');
         const data = await response.json();
 
         this.game = new Game(

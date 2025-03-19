@@ -28,29 +28,44 @@ class ApiGameController extends Controller
             ->whereNotNull('involved_companies')
             ->whereNotNull('screenshots')
             ->whereNotNull('themes')
-            ->whereNotIn('platforms', self::$_NOT_USE_PLATFORMS)
+            ->whereNotInStrict('platforms', self::$_NOT_USE_PLATFORMS)
             ->random(1)
             ->first();
 
         if ($game)
         {
-            dump("Name: " . $game->name);
+            // dump("Name: " . $game->name);
+            $parent_game_name = "";
             if ($game->parent_game)
             {
                 $parent_game = Game::findOrFail($game->parent_game);
-                dump("Parent Game: " . $parent_game->name);
+                $parent_game_name = $parent_game->name;
+                // dump("Parent Game: " . $parent_game->name);
             }
 
-            dump($this->array_to_string('Modes de jeu', $game->game_modes, GameMode::class, 'name'));
-            dump($this->array_to_string('Plateformes', $game->platforms, Platform::class, 'name'));
-            dump($this->array_to_string('Genres', $game->genres, Genre::class, 'name'));
-            dump($this->array_to_string('Thèmes', $game->themes, Theme::class, 'name'));
-            dump($this->array_to_string('Développeurs', $game->involved_companies, InvolvedCompany::class, 'name', Company::class, 'company', 'name'));
-            dump($this->array_to_string('Perspectives', $game->player_perspectives, PlayerPerspective::class, 'name'));
+            // dump($this->array_to_string('Modes de jeu', $game->game_modes, GameMode::class, 'name'));
+            // dump($this->array_to_string('Plateformes', $game->platforms, Platform::class, 'name'));
+            // dump($this->array_to_string('Genres', $game->genres, Genre::class, 'name'));
+            // dump($this->array_to_string('Thèmes', $game->themes, Theme::class, 'name'));
+            // dump($this->array_to_string('Développeurs', $game->involved_companies, InvolvedCompany::class, 'name', Company::class, 'company', 'name'));
+            // dump($this->array_to_string('Perspectives', $game->player_perspectives, PlayerPerspective::class, 'name'));
 
             $screenshot = Screenshot::findOrFail($game->screenshots[array_rand($game->screenshots)]);
-            dump("Screenshot: " . $screenshot->url);
-            dd("Première date de sortie: " . $game->first_release_date->translatedFormat('d F Y'));
+            // dump("Screenshot: " . $screenshot->url);
+            // dd("Première date de sortie: " . $game->first_release_date->translatedFormat('d F Y'));
+
+            return [
+                "name" => $game->name,
+                "parent_name" => $parent_game_name,
+                "game_modes" => $this->array_to_string('Modes de jeu', $game->game_modes, GameMode::class, 'name'),
+                "platformers" => $this->array_to_string('Plateformes', $game->platforms, Platform::class, 'name'),
+                "genres" => $this->array_to_string('Genres', $game->genres, Genre::class, 'name'),
+                "themes" => $this->array_to_string('Thèmes', $game->themes, Theme::class, 'name'),
+                "developers" => $this->array_to_string('Développeurs', $game->involved_companies, InvolvedCompany::class, 'name', Company::class, 'company', 'name'),
+                "perspectives" => $this->array_to_string('Perspectives', $game->player_perspectives, PlayerPerspective::class, 'name'),
+                "first_release_date" => $game->first_release_date->translatedFormat('d F Y'),
+                "screenshot" => "https:" . $screenshot->url
+            ];
 
 //            dd($game);
         }

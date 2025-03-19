@@ -24,7 +24,7 @@
         @include('layouts.navbar')
     </header>
     <div class="flex p-8 w-full transition-opacity opacity-100 duration-750 lg:grow starting:opacity-0">
-        <main class="w-full">
+        <main id="app" class="w-full">
             @yield('page-content')
         </main>
     </div>
