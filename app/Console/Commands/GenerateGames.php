@@ -5,8 +5,6 @@ namespace App\Console\Commands;
 use App\Models\Game;
 use Illuminate\Console\Command;
 use Illuminate\Support\Collection;
-use MarcReichel\IGDBLaravel\Enums\Game\Category;
-use MarcReichel\IGDBLaravel\Models\Company;
 
 class GenerateGames extends Command
 {
@@ -23,9 +21,6 @@ class GenerateGames extends Command
      * @var string
      */
     protected $description = 'Generate games dump of the IGDB api';
-
-    private static array $_NOT_USE_PLATFORMS = [15, 16, 23, 25, 26, 27, 29, 30, 32, 35, 42, 44, 50, 51, 52, 53, 56, 57, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 77, 78, 79, 80, 82, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 131, 132, 133, 134, 135, 136, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 128, 161, 164, 166];
-    private static array $_USE_ONLY_CATEGORIES = [Category::MAIN_GAME->value, Category::REMAKE->value, Category::REMASTER->value];
 
     /**
      * Execute the console command.
@@ -54,7 +49,9 @@ class GenerateGames extends Command
                 ->whereNotNull('screenshots')
                 ->whereNotNull('themes')
                 ->whereNotNull('first_release_date')
-                ->whereNotIn('platforms', self::$_NOT_USE_PLATFORMS)
+                ->whereNotNull('rating_count')
+                ->whereNotIn('platforms', Game::$_NOT_USE_PLATFORMS)
+                ->whereIn('category', Game::$_USE_ONLY_CATEGORIES)
                 ->with([
                     'genres' => [
                         'name'
@@ -95,7 +92,7 @@ class GenerateGames extends Command
                     continue;
                 }
 
-                Game::create([
+                $new_game = Game::create([
                     "name" => $game->name,
                     "parent_name" => $game->parent_name,
                     "game_modes" => $this->array_to_string('Modes de jeu', $game->game_modes, 'name'),
@@ -107,6 +104,11 @@ class GenerateGames extends Command
                     "first_release_date" => $game->first_release_date->translatedFormat('d F Y'),
                     "screenshot" => 'http:' . $game->screenshots[0]->url,
                 ]);
+                if ($game->rating_count && $game->rating_count > 0)
+                {
+                    $new_game->rating_count = $game->rating_count;
+                    $new_game->save();
+                }
                 $this->info('(#' . $i . ') Game ' . $game->name . ' added to the DB');
                 $i++;
             }

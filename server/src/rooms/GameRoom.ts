@@ -11,9 +11,6 @@ export class GameRoom extends Room<GameRoomState> {
     roundDuration: number = 60_000;
 
     async onCreate(options: any) {
-        await this.randomGame();
-        console.log(`random game: ${this.game.name}`);
-
         this.onMessage('start_round', (client, data) => {
             if (this.state.everyoneReady) {
                 this.randomGame().then(() => {
@@ -88,7 +85,9 @@ export class GameRoom extends Room<GameRoomState> {
     }
 
     onJoin(client: Client, options: any) {
-        this.state.players.set(client.sessionId, new Player());
+        const player = new Player();
+        player.username = `Guest ${this.state.players.size + 1}`;
+        this.state.players.set(client.sessionId, player);
     }
 
     async onLeave(client: Client<any, any>, consented?: boolean) {

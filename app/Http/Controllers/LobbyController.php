@@ -2,21 +2,28 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Game;
 use Inertia\Inertia;
-use MarcReichel\IGDBLaravel\Models\Game;
 
 class LobbyController extends Controller
 {
     public function index(): \Inertia\Response
     {
-        $games = Game::all()->select('name')->jsonSerialize();
+        $games = Game::select('name')->where('rating_count', '>', 30)->distinct()->get();
         return Inertia::render('Game/Lobby', [
-            'games' => $games
+            'games' => $games,
+            'joinOnly' => false,
+            'id' => ''
         ]);
     }
 
-    public function game(): \Illuminate\Contracts\View\Factory|\Illuminate\Contracts\View\View|\Illuminate\Foundation\Application
+    public function game(string $roomId): \Inertia\Response
     {
-        return view('game.game');
+        $games = Game::select('name')->where('rating_count', '>', 30)->distinct()->get();
+        return Inertia::render('Game/Lobby', [
+            'games' => $games,
+            'joinOnly' => true,
+            'id' => $roomId
+        ]);
     }
 }
