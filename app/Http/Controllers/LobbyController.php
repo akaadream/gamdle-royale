@@ -2,13 +2,17 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
+use Inertia\Inertia;
+use MarcReichel\IGDBLaravel\Models\Game;
 
 class LobbyController extends Controller
 {
-    public function index(): \Illuminate\Contracts\View\Factory|\Illuminate\Contracts\View\View|\Illuminate\Foundation\Application
+    public function index(): \Inertia\Response
     {
-        return view('game.lobby');
+        $games = Game::all()->select('name')->jsonSerialize();
+        return Inertia::render('Game/Lobby', [
+            'games' => $games
+        ]);
     }
 
     public function game(): \Illuminate\Contracts\View\Factory|\Illuminate\Contracts\View\View|\Illuminate\Foundation\Application

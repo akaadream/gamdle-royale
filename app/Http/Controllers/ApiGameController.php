@@ -3,7 +3,10 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
+use MarcReichel\IGDBLaravel\Builder;
 use MarcReichel\IGDBLaravel\Enums\Game\Category;
+use MarcReichel\IGDBLaravel\Enums\Image\Size;
 use MarcReichel\IGDBLaravel\Models\Company;
 use MarcReichel\IGDBLaravel\Models\Game;
 use MarcReichel\IGDBLaravel\Models\GameMode;
@@ -21,180 +24,99 @@ class ApiGameController extends Controller
 
     public function random_game()
     {
-        $game = Game::all()->whereNotNull('game_modes')
-            ->whereNotNull('platforms')
-            ->whereNotNull('genres')
-            ->whereNotNull('player_perspectives')
-            ->whereNotNull('involved_companies')
-            ->whereNotNull('screenshots')
-            ->whereNotNull('themes')
-            ->whereNotInStrict('platforms', self::$_NOT_USE_PLATFORMS)
-            ->random(1)
-            ->first();
-
-        if ($game)
-        {
-            // dump("Name: " . $game->name);
-            $parent_game_name = "";
-            if ($game->parent_game)
-            {
-                $parent_game = Game::findOrFail($game->parent_game);
-                $parent_game_name = $parent_game->name;
-                // dump("Parent Game: " . $parent_game->name);
-            }
-
-            // dump($this->array_to_string('Modes de jeu', $game->game_modes, GameMode::class, 'name'));
-            // dump($this->array_to_string('Plateformes', $game->platforms, Platform::class, 'name'));
-            // dump($this->array_to_string('Genres', $game->genres, Genre::class, 'name'));
-            // dump($this->array_to_string('Thèmes', $game->themes, Theme::class, 'name'));
-            // dump($this->array_to_string('Développeurs', $game->involved_companies, InvolvedCompany::class, 'name', Company::class, 'company', 'name'));
-            // dump($this->array_to_string('Perspectives', $game->player_perspectives, PlayerPerspective::class, 'name'));
-
-            $screenshot = Screenshot::findOrFail($game->screenshots[array_rand($game->screenshots)]);
-            // dump("Screenshot: " . $screenshot->url);
-            // dd("Première date de sortie: " . $game->first_release_date->translatedFormat('d F Y'));
-
-            return [
-                "name" => $game->name,
-                "parent_name" => $parent_game_name,
-                "game_modes" => $this->array_to_string('Modes de jeu', $game->game_modes, GameMode::class, 'name'),
-                "platformers" => $this->array_to_string('Plateformes', $game->platforms, Platform::class, 'name'),
-                "genres" => $this->array_to_string('Genres', $game->genres, Genre::class, 'name'),
-                "themes" => $this->array_to_string('Thèmes', $game->themes, Theme::class, 'name'),
-                "developers" => $this->array_to_string('Développeurs', $game->involved_companies, InvolvedCompany::class, 'name', Company::class, 'company', 'name'),
-                "perspectives" => $this->array_to_string('Perspectives', $game->player_perspectives, PlayerPerspective::class, 'name'),
-                "first_release_date" => $game->first_release_date->translatedFormat('d F Y'),
-                "screenshot" => "https:" . $screenshot->url
-            ];
-
-//            dd($game);
-        }
-        else
-        {
-            dd("No game found");
-        }
+        return \App\Models\Game::all()->random(1);
     }
 
-    private function array_to_string(string $prefix, array $array, string $model, string $field, string|null $sub_model = null, string $sub_field = '', string $sub_model_field = ''): string
-    {
-        if (!$array)
-        {
-            return "";
-        }
 
+    private function array_to_string(string $prefix, Collection $array, string $field): string
+    {
         $result = [];
         foreach ($array as $element)
         {
-            $element_instance = $model::findOrFail($element);
-            if ($sub_model)
-            {
-                $sub_model_instance = $sub_model::findOrFail($element_instance->$sub_field);
-                $result[] = $sub_model_instance->$sub_model_field;
-            }
-            else
-            {
-                $result[] = $element_instance->$field;
-            }
+            $result[] = $element->$field;
         }
 
         return $prefix . ': ' . join(', ', $result);
     }
 
-    private function involved_companies_to_string($involved_companies): string
+    private function involved_companies_to_string(Collection $involved_companies): string
     {
-        if ($involved_companies)
+        $companies = [];
+        foreach ($involved_companies as $involved_company)
         {
-            $companies = [];
-            foreach ($involved_companies as $involved_company)
+            if (!$involved_company->publisher && !$involved_company->developer)
             {
-
-                $involved_company_instance = InvolvedCompany::findOrFail($involved_company);
-
-                if (!$involved_company_instance->publisher && !$involved_company_instance->developer)
-                {
-                    continue;
-                }
-
-                $company_instance = Company::findOrFail($involved_company_instance->company);
-                $company_name = "" . $company_instance->name;
-                if ($involved_company_instance->developer)
-                {
-                    $company_name .= " (développeur)";
-                }
-                if ($involved_company_instance->publisher)
-                {
-                    $company_name .= " (éditeur)";
-                }
-                $companies[] = $company_name;
+                continue;
             }
 
-            return "Développeurs: " . join(', ', $companies);
+            $company_name = "" . $involved_company->name;
+            if ($involved_company->developer)
+            {
+                $company_name .= " (développeur)";
+            }
+            if ($involved_company->publisher)
+            {
+                $company_name .= " (éditeur)";
+            }
+            $companies[] = $company_name;
         }
 
-        return "";
+        return "Développeurs: " . join(', ', $companies);
     }
 
-    private function old_code()
+    public function games()
     {
-        //            if ($game->game_modes)
-//            {
-//                $modes = [];
-//                foreach ($game->game_modes as $game_mode)
-//                {
-//                    $game_mode_instance = \MarcReichel\IGDBLaravel\Models\GameMode::findOrFail($game_mode);
-//                    $modes[] = $game_mode_instance->name;
-//                }
+//        $games = \MarcReichel\IGDBLaravel\Models\Game::whereNotNull('game_modes')
+//            ->whereNotNull('platforms')
+//            ->whereNotNull('genres')
+//            ->whereNotNull('player_perspectives')
+//            ->whereNotNull('involved_companies')
+//            ->whereNotNull('screenshots')
+//            ->whereNotNull('themes')
+//            ->whereNotNull('first_release_date')
+//            ->whereNotIn('platforms', self::$_NOT_USE_PLATFORMS)
+//            ->with([
+//                'genres' => [
+//                    'name'
+//                ],
+//                'platforms' => [
+//                    'name'
+//                ],
+//                'game_engines' => [
+//                    'name'
+//                ],
+//                'game_modes' => [
+//                    'name'
+//                ],
+//                'player_perspectives' => [
+//                    'name'
+//                ],
+//                'screenshots' => [
+//                    'url'
+//                ],
+//                'themes' => [
+//                    'name'
+//                ],
+//                'involved_companies' => [
+//                    'publisher',
+//                    'developer',
+//                    'company.name'
+//                ]
+//            ])
+//            ->offset(1)
+//            ->get();
 //
-//                dump("Game Modes: " . join(', ', $modes));
-//            }
-
-//            if ($game->platforms)
-//            {
-//                $platforms = [];
-//                foreach ($game->platforms as $platform)
-//                {
-//                    $platform_instance = \MarcReichel\IGDBLaravel\Models\Platform::findOrFail($platform);
-//                    $platforms[] = $platform_instance->name;
-//                }
+//        foreach ($games as $game)
+//        {
 //
-//                dump("Platforms: " . join(', ', $platforms));
-//            }
+////            dd($this->array_to_string('Plateformes', $game->platforms, 'name'));
+////            dd('http:' . $game->screenshots[0]->url);
+//            dd($this->involved_companies_to_string($game->involved_companies));
+//            dd($game->genres);
+//            dd($game->genres->join(', '));
+//        }
+//        dd($games);
 
-
-//            if ($game->genres)
-//            {
-//                $genres = [];
-//                foreach ($game->genres as $genre)
-//                {
-//                    $genre_instance = Genre::findOrFail($genre);
-//                    $genres[] = $genre_instance->name;
-//                }
-//
-//                dump("Genres: " . join(', ', $genres));
-//            }
-
-//            if ($game->themes)
-//            {
-//                $themes = [];
-//                foreach ($game->themes as $theme)
-//                {
-//                    $theme_instance = Theme::findOrFail($theme);
-//                    $themes[] = $theme_instance->name;
-//                }
-//
-//                dump("Themes: " . join(', ', $themes));
-//            }
-
-        //            if ($game->player_perspectives)
-//            {
-//                $perspectives = [];
-//                foreach ($game->player_perspectives as $perspective)
-//                {
-//                    $perspective_instance = PlayerPerspective::findOrFail($perspective);
-//                    $perspectives[] = $perspective_instance->name;
-//                }
-//
-//                dump("Perspectives: " . join(', ', $perspectives));
-//            }
+        return \App\Models\Game::all(['name']);
     }
 }
