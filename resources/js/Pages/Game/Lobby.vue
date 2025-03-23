@@ -4,6 +4,7 @@ import {onMounted, ref} from "vue";
 import {Client, getStateCallbacks} from "colyseus.js";
 import Highlight from "@/components/Highlight.vue";
 import ConnectedUser from "@/components/ConnectedUser.vue";
+import UsernameModal from "@/components/modals/UsernameModal.vue";
 
 const props = defineProps({
     games: Array,
@@ -17,13 +18,21 @@ const joinOnly = ref(props.joinOnly);
 const id = ref(props.id);
 const players = ref([]);
 
+const modalActive = ref(false);
+
 let client;
 
-function connect() {
+function openUsernameModal() {
+    modalActive.value = true;
+}
+
+function connect(username) {
     client = new Client("ws://localhost:2567");
 
     if (id.value !== "") {
-        client.joinById(id.value).then(room => {
+        client.joinById(id.value, {
+            username: username
+        }).then(room => {
             console.log(`Connected to the room ${room.roomId}`);
             roomId.value = `https://gamdle-royale.test/${room.roomId}`;
             lobby.value = true;
@@ -32,7 +41,9 @@ function connect() {
         });
     }
     else {
-        client.create('game').then(room => {
+        client.create('game', {
+            username: username
+        }).then(room => {
             console.log(`Connected to the room ${room.roomId}`);
             roomId.value = `https://gamdle-royale.test/${room.roomId}`;
             lobby.value = true;
@@ -54,7 +65,7 @@ function listenEvents(room) {
 
 onMounted(() => {
     if (joinOnly.value) {
-        connect();
+        // connect();
     }
 });
 
@@ -79,6 +90,8 @@ function copyRoomId() {
     </div>
 
     <section class="hero full-height" v-else>
+        <UsernameModal :active="modalActive" @username="(username) => connect(username)" />
+
         <div class="hero-body">
             <div class="full-hero">
                 <div>
@@ -92,7 +105,7 @@ function copyRoomId() {
                 </div>
 
                 <div class="hero-buttons">
-                    <button @click="connect" class="button">
+                    <button @click="openUsernameModal" class="button">
                         Jouer
                     </button>
                 </div>

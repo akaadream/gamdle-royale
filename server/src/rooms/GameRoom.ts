@@ -86,7 +86,13 @@ export class GameRoom extends Room<GameRoomState> {
 
     onJoin(client: Client, options: any) {
         const player = new Player();
-        player.username = `Guest ${this.state.players.size + 1}`;
+        if (options.username) {
+            player.username = options.username;
+        }
+        else {
+            player.username = `Guest ${this.state.players.size + 1}`;
+        }
+
         this.state.players.set(client.sessionId, player);
     }
 
