@@ -19,6 +19,7 @@ const currentGuess = ref<string>('');
 const hints = ref<string[]>([]);
 const suggestions = ref<string[]>([]);
 const isTyping = ref<boolean>(false);
+const lastGuessResult = ref<'good' | 'bad' | null>(null);
 let typingTimeout: NodeJS.Timeout;
 
 function updatePlayers(state: any) {
@@ -43,6 +44,13 @@ function handleInput() {
     }, 1000);
 
     props.room.send('guess', { guess: currentGuess.value });
+}
+
+function handleSubmit(event: KeyboardEvent) {
+    if (event.key === 'Enter' && currentGuess.value.trim()) {
+        props.room.send('attempt', { game_name: currentGuess.value.trim() });
+        currentGuess.value = '';
+    }
 }
 
 function handleHint(hint: string) {
@@ -72,6 +80,20 @@ function handlePlayerBadGuess(username: string, guess: string) {
     }
 }
 
+function handleGoodAnswer() {
+    lastGuessResult.value = 'good';
+    setTimeout(() => {
+        lastGuessResult.value = null;
+    }, 2000);
+}
+
+function handleBadAnswer() {
+    lastGuessResult.value = 'bad';
+    setTimeout(() => {
+        lastGuessResult.value = null;
+    }, 2000);
+}
+
 onMounted(() => {
     props.room.onStateChange((state: any) => {
         updatePlayers(state);
@@ -91,6 +113,14 @@ onMounted(() => {
 
     props.room.onMessage('bad_guess', (data: { username: string, guess: string }) => {
         handlePlayerBadGuess(data.username, data.guess);
+    });
+
+    props.room.onMessage('good_answer', () => {
+        handleGoodAnswer();
+    });
+
+    props.room.onMessage('bad_answer', () => {
+        handleBadAnswer();
     });
 });
 </script>
@@ -113,9 +143,20 @@ onMounted(() => {
                     type="text" 
                     v-model="currentGuess" 
                     @input="handleInput"
+                    @keydown="handleSubmit"
                     class="input is-large"
+                    :class="{
+                        'is-success': lastGuessResult === 'good',
+                        'is-danger': lastGuessResult === 'bad'
+                    }"
                     placeholder="Entrez le nom du jeu..."
                 >
+                <div v-if="lastGuessResult === 'good'" class="notification is-success">
+                    Bonne réponse !
+                </div>
+                <div v-if="lastGuessResult === 'bad'" class="notification is-danger">
+                    Mauvaise réponse, essayez encore !
+                </div>
             </div>
 
             <div v-if="suggestions.length > 0" class="suggestions">
@@ -172,6 +213,7 @@ onMounted(() => {
 
 .guess-input {
     width: 100%;
+    position: relative;
 }
 
 .guess-input input {
@@ -179,6 +221,15 @@ onMounted(() => {
     height: 4rem;
     font-size: 1.5rem;
     text-align: center;
+}
+
+.notification {
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    margin-top: 1rem;
+    z-index: 1;
 }
 
 .suggestions {
