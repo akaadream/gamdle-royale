@@ -9,23 +9,11 @@ export class GameRoom extends Room<GameRoomState> {
     countdownInterval: Delayed;
     roundInterval: Delayed;
     roundDuration: number = 60_000;
+    countdownDuration: number = 5;
 
     async onCreate(options: any) {
-        this.onMessage('start_round', (client, data) => {
-            if (this.state.everyoneReady) {
-                this.randomGame().then(() => {
-                    this.countdownInterval = this.clock.setTimeout(() => this.countdown(), 1_000);
-                })
-            }
-        });
-
-        this.onMessage('ready', (client, data) => {
+        this.onMessage('start', (client) => {
             this.setReady(true, client.sessionId);
-            this.checkEveryoneReady();
-        });
-
-        this.onMessage('not_ready', (client, data) => {
-            this.setReady(false, client.sessionId);
             this.checkEveryoneReady();
         });
 
@@ -46,16 +34,15 @@ export class GameRoom extends Room<GameRoomState> {
         });
     }
 
-
-
     countdown() {
         this.state.countdown--;
         if (this.state.countdown === 0) {
             this.countdownInterval.clear();
-
-            this.state.currentRound++;
-            this.roundInterval = this.clock.setInterval(() => this.hint(), 10_000);
-            this.clock.setTimeout(() => this.roundEnding(), this.roundDuration);
+            this.state.gameState = 'playing';
+            this.randomGame().then(() => {
+                this.roundInterval = this.clock.setInterval(() => this.hint(), 10_000);
+                this.clock.setTimeout(() => this.roundEnding(), this.roundDuration);
+            });
         }
     }
 
@@ -68,13 +55,20 @@ export class GameRoom extends Room<GameRoomState> {
     }
 
     checkEveryoneReady(): void {
-        this.state.players.forEach((player, key) => {
+        let allReady = true;
+        this.state.players.forEach((player) => {
             if (!player.ready) {
-                this.state.everyoneReady = false;
+                allReady = false;
             }
         });
 
-        this.state.everyoneReady = true;
+        this.state.everyoneReady = allReady;
+
+        if (allReady) {
+            this.state.gameState = 'countdown';
+            this.state.countdown = this.countdownDuration;
+            this.countdownInterval = this.clock.setInterval(() => this.countdown(), 1_000);
+        }
     }
 
     setReady(ready: boolean, sessionId: string) {
@@ -92,6 +86,7 @@ export class GameRoom extends Room<GameRoomState> {
         else {
             player.username = `Guest ${this.state.players.size + 1}`;
         }
+        player.ready = false;
 
         this.state.players.set(client.sessionId, player);
     }

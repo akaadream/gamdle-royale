@@ -1,14 +1,22 @@
-<script setup>
-    import {ref} from "vue";
+<script setup lang="ts">
+    import {ref, watch} from "vue";
 
-    const props = defineProps(['active']);
-    const isActive = ref(props.active);
+    interface Props {
+        active: boolean;
+    }
 
-    function close() {
+    const props = defineProps<Props>();
+    const isActive = ref<boolean>(props.active);
+
+    watch(() => props.active, (newValue: boolean) => {
+        isActive.value = newValue;
+    });
+
+    function close(): void {
         isActive.value = false;
     }
 
-    function onKeyDown(event) {
+    function onKeyDown(event: KeyboardEvent): void {
         if (event.key === "Escape") {
             close();
         }

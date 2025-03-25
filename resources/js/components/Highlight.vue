@@ -1,5 +1,7 @@
-<script setup>
-
+<script setup lang="ts">
+defineEmits<{
+    (e: 'copyRoomId'): void;
+}>();
 </script>
 
 <template>

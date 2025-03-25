@@ -1,22 +1,38 @@
-<script setup>
-import {ref} from "vue";
+<script setup lang="ts">
+import { ref } from "vue";
 import Modal from "@/components/modals/Modal.vue";
 
-const username = ref("");
+interface Props {
+    active: boolean;
+}
+
+const props = defineProps<Props>();
+const username = ref<string>("");
+
+function submitUsername(): void {
+    if (username.value.trim()) {
+        emit('username', username.value);
+        username.value = "";
+    }
+}
+
+const emit = defineEmits<{
+    (e: 'username', username: string): void;
+}>();
 </script>
 
 <template>
-    <Modal>
+    <Modal :active="active">
         <div class="field">
             <label class="label">Nom d'utilisateur</label>
             <div class="control">
-                <input ref="username" type="text" class="input" placeholder="Nom d'utilisateur">
+                <input v-model="username" type="text" class="input" placeholder="Nom d'utilisateur">
             </div>
         </div>
 
         <div class="field is-grouped">
             <div class="control">
-                <button @click="$emit('username', username)" class="button is-link">Valider</button>
+                <button @click="submitUsername" class="button is-link">Valider</button>
             </div>
         </div>
     </Modal>

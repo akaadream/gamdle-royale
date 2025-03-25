@@ -12,4 +12,5 @@ export class GameRoomState extends Schema {
     @type("number") countdown: number = 5;
     @type("boolean") everyoneReady: boolean = false;
     @type("number") currentRound: number = 0;
+    @type("string") gameState: 'waiting' | 'countdown' | 'playing' = 'waiting';
 }
