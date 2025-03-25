@@ -27,7 +27,8 @@ const players = ref<Player[]>([]);
 const modalActive = ref<boolean>(false);
 const gameState = ref<'waiting' | 'countdown' | 'playing'>('waiting');
 const countdown = ref<number>(0);
-
+const isHost = ref<boolean>(false);
+const isReady = ref<boolean>(false);
 let client: Client;
 let room: any;
 
@@ -49,6 +50,8 @@ function connect(username: string): void {
             roomId.value = `https://gamdle-royale.test/${room.roomId}`;
             lobby.value = true;
             modalActive.value = false;
+            isHost.value = id.value === "";
+
             listenEvents(room);
         })
         .catch(error => {
@@ -73,6 +76,11 @@ function startGame(): void {
     room.send('start');
 }
 
+function toggleReady(): void {
+    room.send('toggle_ready');
+    isReady.value = !isReady.value;
+}
+
 onMounted(() => {
     if (joinOnly.value) {
         openUsernameModal();
@@ -88,7 +96,7 @@ function copyRoomId(): void {
     <Head title="Lobby" />
 
     <div v-if="gameState === 'playing'">
-        <GamePlay :room="room" />
+        <GamePlay :room="room" :games="games" :is-host="isHost" />
     </div>
 
     <div v-else-if="lobby">
@@ -114,8 +122,13 @@ function copyRoomId(): void {
         </div>
 
         <div class="start-game">
-            <button @click="startGame" class="button is-primary is-large">
-                Jouer
+            <button v-if="isHost" @click="startGame" class="button is-primary is-large">
+                Lancer la partie
+            </button>
+
+            <button @click="toggleReady" class="button is-primary is-large">
+                <span v-if="isReady">Pas prêt</span>
+                <span v-else>Prêt</span>
             </button>
         </div>
     </div>

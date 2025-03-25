@@ -26,7 +26,13 @@ const emit = defineEmits<{
         <div class="field">
             <label class="label">Nom d'utilisateur</label>
             <div class="control">
-                <input v-model="username" type="text" class="input" placeholder="Nom d'utilisateur">
+                <input 
+                    v-model="username" 
+                    type="text" 
+                    class="input" 
+                    placeholder="Nom d'utilisateur"
+                    @keydown.enter="submitUsername"
+                >
             </div>
         </div>
 
