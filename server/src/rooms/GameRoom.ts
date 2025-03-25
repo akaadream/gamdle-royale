@@ -4,6 +4,9 @@ import {Delayed} from "colyseus";
 import axios from 'axios';
 import https from 'https';
 
+const isDevelopment = process.env.NODE_ENV === 'development';
+const API_URL = isDevelopment ? 'https://gamdle-royale.test' : 'https://gamdle-royale.fr';
+
 interface GameData {
     name: string;
     parent_name?: string;
@@ -23,8 +26,8 @@ interface GameData {
 export class GameRoom extends Room<GameRoomState> {
     private game: GameData | null = null;
     state = new GameRoomState();
-    countdownInterval: Delayed;
-    roundInterval: Delayed;
+    countdownInterval?: Delayed;
+    roundInterval?: Delayed;
     roundDuration: number = 60_000;
     countdownDuration: number = 5;
 
@@ -89,7 +92,7 @@ export class GameRoom extends Room<GameRoomState> {
     countdown() {
         this.state.countdown--;
         if (this.state.countdown === 0) {
-            this.countdownInterval.clear();
+            this.countdownInterval?.clear();
             this.state.gameState = 'playing';
             this.randomGame().then(() => {
                 this.roundInterval = this.clock.setInterval(() => this.hint(), 10_000);
@@ -100,7 +103,10 @@ export class GameRoom extends Room<GameRoomState> {
 
     hint() {
         const nextHint = this.game?.hints[this.game.current_hint];
-        this.game.current_hint++;
+        if (this.game) {
+            this.game.current_hint++;
+        }
+        
         console.log("hint", nextHint);
         this.broadcast('hint', nextHint);
     }
@@ -156,7 +162,7 @@ export class GameRoom extends Room<GameRoomState> {
      * Find a random game and assign it to the room
      */
     async randomGame() {
-        const response = await axios.get('https://gamdle-royale.test/api/v1/random-game', {
+        const response = await axios.get(`${API_URL}/api/v1/random-game`, {
             httpsAgent: new https.Agent({
                 rejectUnauthorized: false
             })

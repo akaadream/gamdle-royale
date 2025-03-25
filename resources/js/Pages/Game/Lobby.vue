@@ -6,6 +6,7 @@ import Highlight from "@/components/Highlight.vue";
 import ConnectedUser from "@/components/ConnectedUser.vue";
 import UsernameModal from "@/components/modals/UsernameModal.vue";
 import GamePlay from "@/components/Game/GamePlay.vue";
+import { config } from "@/config";
 
 interface Player {
     username: string;
@@ -37,7 +38,7 @@ function openUsernameModal(): void {
 }
 
 function connect(username: string): void {
-    client = new Client("ws://localhost:2567");
+    client = new Client(config.wsUrl);
 
     const connectPromise = id.value !== "" 
         ? client.joinById(id.value, { username: username })
@@ -47,11 +48,10 @@ function connect(username: string): void {
         .then(r => {
             room = r;
             console.log(`Connected to the room ${room.roomId}`);
-            roomId.value = `https://gamdle-royale.test/${room.roomId}`;
+            roomId.value = `${config.roomUrl}/${room.roomId}`;
             lobby.value = true;
             modalActive.value = false;
             isHost.value = id.value === "";
-
             listenEvents(room);
         })
         .catch(error => {
