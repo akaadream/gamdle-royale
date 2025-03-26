@@ -38,11 +38,12 @@
     "typescript": "^5.3.2"
   },
   "dependencies": {
-    "@colyseus/core": "^0.14.24",
-    "@colyseus/schema": "^3.0.5",
+    "@colyseus/auth": "^0.16.4",
+    "@colyseus/core": "^0.16.13",
     "@colyseus/monitor": "^0.16.0",
     "@colyseus/playground": "^0.16.0",
-    "@colyseus/tools": "^0.16.0",
+    "@colyseus/schema": "^3.0.5",
+    "@colyseus/tools": "^0.16.3",
     "axios": "^1.6.2",
     "colyseus": "^0.14.24",
     "colyseus.js": "^0.16.11",
