@@ -42,7 +42,7 @@ export class GameRoom extends Room<GameRoomState> {
             }
         });
 
-        this.onMessage('ready', (client) => {
+        this.onMessage('start', (client) => {
             this.checkEveryoneReady();
         });
 
