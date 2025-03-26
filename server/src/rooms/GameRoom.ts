@@ -1,6 +1,5 @@
 import {GameRoomState, Player} from "./schema/GameRoomState";
-import {Client, Room} from "@colyseus/core";
-import {Delayed} from "colyseus";
+import {Client, Delayed, Room} from "@colyseus/core";
 import axios from 'axios';
 import https from 'https';
 
