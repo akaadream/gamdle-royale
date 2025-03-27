@@ -5,6 +5,7 @@ export class Player extends Schema {
     @type("boolean") isTyping: boolean = false;
     @type("string") lastGuess: string = "";
     @type("boolean") foundAnswer: boolean = false;
+    @type("boolean") ready: boolean = false;
 }
 
 export class GameRoomState extends Schema {
@@ -13,7 +14,9 @@ export class GameRoomState extends Schema {
     @type("string") gameState: "waiting" | "countdown" | "playing" | "finished" = "waiting";
     @type("number") roundNumber: number = 0;
     @type("number") maxRounds: number = 10;
-    @type("number") roundTimeLimit: number = 300; // 5 minutes en secondes
-    @type("number") roundStartTime: number = 0;
+    @type("number") roundTimeLimit: number = 900; // 90 secondes
+    @type("number") roundTime: number = 0;
     @type("number") countdown: number = 0;
+    @type("number") nextHintTime: number = 0;
+    @type("boolean") everyoneReady: boolean = false;
 } 

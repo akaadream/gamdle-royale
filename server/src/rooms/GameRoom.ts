@@ -1,4 +1,4 @@
-import {GameRoomState, Player} from "./schema/GameRoomState";
+import {GameRoomState, Player} from "./GameRoomState";
 import {Client, Delayed, Room} from "@colyseus/core";
 import axios from 'axios';
 import https from 'https';
@@ -24,15 +24,16 @@ interface GameData {
 
 export class GameRoom extends Room<GameRoomState> {
     private game: GameData | null = null;
-    state = new GameRoomState();
     countdownInterval?: Delayed;
     roundInterval?: Delayed;
-    roundDuration: number = 60_000;
     countdownDuration: number = 5;
+    hintInterval: number = 10;
 
     async onCreate(options: any) {
         this.state = new GameRoomState();
         this.game = options.game;
+        this.countdownInterval = this.clock.setInterval(() => this.countdown(), 1000);
+        this.roundInterval = this.clock.setInterval(() => this.nextHint(), 1000);
 
         this.onMessage('toggle_ready', (client) => {
             const player = this.state.players.get(client.sessionId);
@@ -42,7 +43,12 @@ export class GameRoom extends Room<GameRoomState> {
         });
 
         this.onMessage('start', (client) => {
+            this.setReady(true, client.sessionId);
             this.checkEveryoneReady();
+        });
+
+        this.onMessage('round-timeout', () => {
+            this.endRound();
         });
 
         this.onMessage('typing_start', (client) => {
@@ -82,9 +88,6 @@ export class GameRoom extends Room<GameRoomState> {
         this.onMessage('guess', (client, message) => {
             const player = this.state.players.get(client.sessionId);
             if (!player) return;
-
-            // Mettre à jour le dernier guess du joueur pendant qu'il tape
-            player.lastGuess = message.guess;
         });
     }
 
@@ -92,26 +95,48 @@ export class GameRoom extends Room<GameRoomState> {
         this.state.countdown--;
         if (this.state.countdown === 0) {
             this.countdownInterval?.clear();
-            this.state.gameState = 'playing';
-            this.randomGame().then(() => {
-                this.roundInterval = this.clock.setInterval(() => this.hint(), 10_000);
-                this.clock.setTimeout(() => this.roundEnding(), this.roundDuration);
-            });
+            this.startRound();
         }
     }
 
-    hint() {
-        const nextHint = this.game?.hints[this.game.current_hint];
-        if (this.game) {
+    roundTick() {
+        this.state.roundTime++;
+        if (this.state.roundTime === this.state.roundTimeLimit) {
+            this.endRound();
+        }
+        if (this.state.roundTime % 10 === 0) {
+            this.nextHint();
+        }
+    }
+
+    private startRound() {
+        this.state.gameState = "playing";
+        this.roundInterval = this.clock.setInterval(() => { this.roundTick(); }, 1000);
+
+        this.randomGame().then(() => {
+            this.broadcast("round-start");
+            this.nextHint();
+        });
+    }
+
+    private endRound() {
+        this.state.gameState = "finished";
+        this.broadcast("round-end");
+        this.checkGameEnd();
+    }
+
+    private nextHint() {
+        if (!this.game)
+        {
+            return;
+        }
+
+        if (this.game.current_hint < this.game.hints.length) {
+            const nextHint = this.game.hints[this.game.current_hint];
             this.game.current_hint++;
+            console.log("hint gave");
+            this.broadcast("hint", nextHint);
         }
-        
-        console.log("hint", nextHint);
-        this.broadcast('hint', nextHint);
-    }
-
-    roundEnding() {
-        // TODO: round ending
     }
 
     checkEveryoneReady(): void {

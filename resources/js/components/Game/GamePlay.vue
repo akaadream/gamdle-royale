@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, onMounted } from 'vue';
+import { ref, watch, onMounted, onUnmounted } from 'vue';
 import { Client } from 'colyseus.js';
 import NextRoundModal from '@/components/modals/NextRoundModal.vue';
 
@@ -26,7 +26,12 @@ const isTyping = ref<boolean>(false);
 const lastGuessResult = ref<'good' | 'bad' | null>(null);
 const hasFoundAnswer = ref<boolean>(false);
 const showNextRoundModal = ref<boolean>(false);
+const roundTime = ref<number>(90);
+const roundNumber = ref<number>(0);
+const nextHintTime = ref<number>(0);
 let typingTimeout: NodeJS.Timeout;
+let roundTimer: NodeJS.Timeout;
+let hintTimer: NodeJS.Timeout;
 
 // Fonction pour calculer la distance de Levenshtein
 function levenshteinDistance(a: string, b: string): number {
@@ -206,9 +211,44 @@ function startNextRound() {
     showNextRoundModal.value = false;
 }
 
+function updateRoundInfo(state: any) {
+    roundNumber.value = state.roundNumber;
+    roundTime.value = 90 - state.roundTime;
+    nextHintTime.value = (90 - state.roundTime) % 10;
+}
+
+function formatTime(seconds: number): string {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+}
+
+function startRoundTimers() {
+    if (roundTimer) clearInterval(roundTimer);
+    if (hintTimer) clearInterval(hintTimer);
+
+    roundTimer = setInterval(() => {
+        if (roundTime.value > 0) {
+            roundTime.value--;
+        } else {
+            clearInterval(roundTimer);
+            props.room.send('round-timeout');
+        }
+    }, 1000);
+
+    hintTimer = setInterval(() => {
+        if (nextHintTime.value > 0) {
+            nextHintTime.value--;
+        } else {
+            clearInterval(hintTimer);
+        }
+    }, 1000);
+}
+
 onMounted(() => {
     props.room.onStateChange((state: any) => {
         updatePlayers(state);
+        updateRoundInfo(state);
     });
 
     props.room.onMessage('hint', (hint: string) => {
@@ -265,18 +305,40 @@ onMounted(() => {
             player.isTyping = false;
         }
     });
+
+    props.room.onMessage('round-start', () => {
+        startRoundTimers();
+    });
+
+    props.room.onMessage('round-end', () => {
+        clearInterval(roundTimer);
+        clearInterval(hintTimer);
+    });
+});
+
+onUnmounted(() => {
+    clearInterval(roundTimer);
+    clearInterval(hintTimer);
 });
 </script>
 
 <template>
     <div class="game-play">
-        <div class="players-list">
-            <h2 class="title is-4">Joueurs</h2>
-            <div v-for="player in players" :key="player.username" class="player-item">
-                <span class="player-name">{{ player.username }}</span>
-                <span v-if="player.isTyping" class="tag is-info">Écrit...</span>
-                <span v-if="player.lastGuess" class="tag is-warning">{{ player.lastGuess }}</span>
-                <span v-if="player.foundAnswer" class="tag is-success">Trouvé !</span>
+        <div class="left-side">
+            <div class="round-info">
+                <span class="tag is-big is-primary">Round {{ roundNumber + 1 }}/10</span>
+                <span class="tag is-big is-info">Temps restant : {{ formatTime(roundTime) }}</span>
+                <span class="tag is-big is-warning">Prochain indice dans : {{ formatTime(nextHintTime) }}</span>
+            </div>
+
+            <div class="players-list">
+                <h2 class="title is-4">Joueurs</h2>
+                <div v-for="player in players" :key="player.username" class="player-item">
+                    <span class="player-name">{{ player.username }}</span>
+                    <span v-if="player.isTyping" class="tag is-info">Écrit...</span>
+                    <span v-if="player.lastGuess" class="tag is-warning">{{ player.lastGuess }}</span>
+                    <span v-if="player.foundAnswer" class="tag is-success">Trouvé !</span>
+                </div>
             </div>
         </div>
 
@@ -339,10 +401,35 @@ onMounted(() => {
 <style scoped>
 .game-play {
     display: grid;
-    grid-template-columns: 300px 1fr;
+    grid-template-columns: 2fr 5fr;
     gap: 2rem;
     height: 100%;
     padding: 2rem;
+}
+
+.game-header {
+    margin-bottom: 2rem;
+    padding: 1rem;
+    background-color: var(--gamdle-darker-color);
+    border-radius: 8px;
+}
+
+.left-side {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.round-info {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    justify-content: center;
+}
+
+.tag {
+    font-size: 0.9em;
+    padding: 0.4rem 0.6rem;
 }
 
 .players-list {
