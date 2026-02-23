@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\JsonResponse;
+use MarcReichel\IGDBLaravel\Exceptions\MissingEndpointException;
 use MarcReichel\IGDBLaravel\Models\Game;
 
 class ApiGameController extends Controller
@@ -87,5 +88,13 @@ class ApiGameController extends Controller
                 ]
             ])
             ->count();
+    }
+
+    /**
+     * @throws MissingEndpointException
+     */
+    public function shaper()
+    {
+        return Game::where('name', 'Shaper')->first();
     }
 }

@@ -27,6 +27,10 @@ class AddRatingCountToGames extends Command
     public function handle(): void
     {
         Game::all()->each(function (Game $game) {
+            if ($game->rating_count)
+            {
+                return;
+            }
             $igdb_game = \MarcReichel\IGDBLaravel\Models\Game::where('name', $game->name)->first();
             if ($igdb_game)
             {
@@ -38,5 +42,7 @@ class AddRatingCountToGames extends Command
                 }
             }
         });
+
+        $this->info('Done.');
     }
 }

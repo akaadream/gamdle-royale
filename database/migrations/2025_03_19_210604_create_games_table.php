@@ -24,6 +24,7 @@ return new class extends Migration
             $table->string('perspectives');
             $table->string('first_release_date');
             $table->string('screenshot');
+            $table->string('categories');
 
             $table->timestamps();
         });

@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Models\Game;
 use Illuminate\Console\Command;
 use Illuminate\Support\Collection;
+use MarcReichel\IGDBLaravel\Exceptions\MissingEndpointException;
 
 class GenerateGames extends Command
 {
@@ -24,6 +25,7 @@ class GenerateGames extends Command
 
     /**
      * Execute the console command.
+     * @throws MissingEndpointException
      */
     public function handle(): void
     {
@@ -41,80 +43,91 @@ class GenerateGames extends Command
 
         $i = $current_offset;
         do {
-            $games = \MarcReichel\IGDBLaravel\Models\Game::whereNotNull('game_modes')
-                ->whereNotNull('platforms')
-                ->whereNotNull('genres')
-                ->whereNotNull('player_perspectives')
-                ->whereNotNull('involved_companies')
-                ->whereNotNull('screenshots')
-                ->whereNotNull('themes')
-                ->whereNotNull('first_release_date')
-                ->whereNotNull('rating_count')
-                ->whereNotIn('platforms', Game::$_NOT_USE_PLATFORMS)
-                ->whereIn('category', Game::$_USE_ONLY_CATEGORIES)
-                ->with([
-                    'genres' => [
-                        'name'
-                    ],
-                    'platforms' => [
-                        'name'
-                    ],
-                    'game_engines' => [
-                        'name'
-                    ],
-                    'game_modes' => [
-                        'name'
-                    ],
-                    'player_perspectives' => [
-                        'name'
-                    ],
-                    'screenshots' => [
-                        'url'
-                    ],
-                    'themes' => [
-                        'name'
-                    ],
-                    'involved_companies' => [
-                        'company.name',
-                        'developer',
-                        'publisher'
-                    ]
-                ])
-                ->offset($current_offset)
-                ->limit(500)
-                ->get();
+            try {
+                $this->info("Trying to fetch games...");
+                $games = \MarcReichel\IGDBLaravel\Models\Game::whereNotNull('game_modes')
+                    ->whereNotNull('platforms')
+                    ->whereNotNull('genres')
+                    ->whereNotNull('player_perspectives')
+                    ->whereNotNull('involved_companies')
+                    ->whereNotNull('screenshots')
+                    ->whereNotNull('themes')
+                    ->whereNotNull('first_release_date')
+                    ->whereNotNull('rating_count')
+                    ->whereNotIn('platforms', Game::$_NOT_USE_PLATFORMS)
+                    ->whereIn('game_type', [0])
+                    ->with([
+                        'genres' => [
+                            'name'
+                        ],
+                        'platforms' => [
+                            'name'
+                        ],
+                        'game_engines' => [
+                            'name'
+                        ],
+                        'game_modes' => [
+                            'name'
+                        ],
+                        'player_perspectives' => [
+                            'name'
+                        ],
+                        'screenshots' => [
+                            'url'
+                        ],
+                        'themes' => [
+                            'name'
+                        ],
+                        'involved_companies' => [
+                            'company.name',
+                            'developer',
+                            'publisher'
+                        ]
+                    ])
+                    ->offset($current_offset)
+                    ->limit(500)
+                    ->get();
 
-            foreach ($games as $game)
-            {
-                if (!$game->screenshots || count($game->screenshots) == 0)
+                $this->info("Fetched " . $games->count() . " games");
+                foreach ($games as $game)
                 {
-                    $this->warn('(#' . $i . ') Game ' . $game->name . ' ignored. No screenshot.');
-                    continue;
+                    if (!$game->screenshots || count($game->screenshots) == 0)
+                    {
+                        $this->warn('(#' . $i . ') Game ' . $game->name . ' ignored. No screenshot.');
+                        continue;
+                    }
+
+                    $new_game = Game::create([
+                        "name" => $game->name,
+                        "parent_name" => $game->parent_name,
+                        "game_modes" => $this->array_to_string('Modes de jeu', $game->game_modes, 'name'),
+                        "platforms" => $this->array_to_string('Plateformes', $game->platforms, 'name'),
+                        "genres" => $this->array_to_string('Genres', $game->genres, 'name'),
+                        "themes" => $this->array_to_string('Thèmes', $game->themes, 'name'),
+                        "developers" => $this->involved_companies_to_string($game->involved_companies),
+                        "perspectives" => $this->array_to_string('Perspectives', $game->player_perspectives, 'name'),
+                        "first_release_date" => $game->first_release_date->translatedFormat('d F Y'),
+                        "screenshot" => 'http:' . $game->screenshots[0]->url,
+                    ]);
+                    if ($game->rating_count && $game->rating_count > 0)
+                    {
+                        $new_game->rating_count = $game->rating_count;
+                        $new_game->save();
+                    }
+                    $this->info('(#' . $i . ') Game ' . $game->name . ' added to the DB');
+                    $i++;
                 }
 
-                $new_game = Game::create([
-                    "name" => $game->name,
-                    "parent_name" => $game->parent_name,
-                    "game_modes" => $this->array_to_string('Modes de jeu', $game->game_modes, 'name'),
-                    "platforms" => $this->array_to_string('Plateformes', $game->platforms, 'name'),
-                    "genres" => $this->array_to_string('Genres', $game->genres, 'name'),
-                    "themes" => $this->array_to_string('Thèmes', $game->themes, 'name'),
-                    "developers" => $this->involved_companies_to_string($game->involved_companies),
-                    "perspectives" => $this->array_to_string('Perspectives', $game->player_perspectives, 'name'),
-                    "first_release_date" => $game->first_release_date->translatedFormat('d F Y'),
-                    "screenshot" => 'http:' . $game->screenshots[0]->url,
-                ]);
-                if ($game->rating_count && $game->rating_count > 0)
-                {
-                    $new_game->rating_count = $game->rating_count;
-                    $new_game->save();
-                }
-                $this->info('(#' . $i . ') Game ' . $game->name . ' added to the DB');
-                $i++;
+                $current_offset += 500;
+
             }
-
-            $current_offset += 500;
+            catch (MissingEndpointException $e)
+            {
+                $this->error('IGDB endpoint not found. Please check your API key.');
+            }
         } while($games->count() == 500);
+
+        $this->info("Done. " . $i . " games added.");
     }
 
     private function involved_companies_to_string(Collection $involved_companies): string
