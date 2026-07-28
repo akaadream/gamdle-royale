@@ -7,6 +7,7 @@
 
     const props = defineProps<Props>();
     const isActive = ref<boolean>(props.active);
+    const emit = defineEmits();
 
     watch(() => props.active, (newValue: boolean) => {
         isActive.value = newValue;
@@ -14,6 +15,7 @@
 
     function close(): void {
         isActive.value = false;
+        emit('close');
     }
 
     function onKeyDown(event: KeyboardEvent): void {

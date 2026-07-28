@@ -2,19 +2,25 @@
 import { Head } from "@inertiajs/vue3";
 import { onMounted, ref } from "vue";
 import { Client } from "colyseus.js";
-import Highlight from "@/components/Highlight.vue";
-import ConnectedUser from "@/components/ConnectedUser.vue";
 import UsernameModal from "@/components/modals/UsernameModal.vue";
+import CreateGameModal from "@/components/modals/CreateGameModal.vue";
 import GamePlay from "@/components/Game/GamePlay.vue";
 import { config } from "@/config";
 
-interface Player {
-    username: string;
-    ready: boolean;
+interface Room {
+    name: string;
+    code: string;
+    is_private: boolean;
+}
+
+interface User {
+    name: string;
+    avatar: string;
 }
 
 interface Props {
-    games: Array<any>;
+    games: Array<Room>;
+    user: User;
     joinOnly: boolean;
     id: string;
 }
@@ -24,12 +30,15 @@ const roomId = ref<string>("");
 const lobby = ref<boolean>(false);
 const joinOnly = ref<boolean>(props.joinOnly);
 const id = ref<string>(props.id);
-const players = ref<Player[]>([]);
+const user = ref<User>(props.user);
+
 const modalActive = ref<boolean>(false);
+const createGameModalActive = ref<boolean>(false);
+const joinGameModalActive = ref<boolean>(false);
 const gameState = ref<'waiting' | 'countdown' | 'playing'>('waiting');
-const countdown = ref<number>(0);
 const isHost = ref<boolean>(false);
 const isReady = ref<boolean>(false);
+const games = ref<Array<Room>>(props.games);
 let client: Client;
 let room: any;
 
@@ -37,12 +46,21 @@ function openUsernameModal(): void {
     modalActive.value = true;
 }
 
-function connect(username: string): void {
+function createGameModal(): void {
+    console.log("createGameModal");
+    createGameModalActive.value = true;
+}
+
+function joinGameModal(): void {
+    joinGameModalActive.value = true;
+}
+
+function onGameCreated(gameName: string): void {
     client = new Client(config.wsUrl);
 
-    const connectPromise = id.value !== "" 
-        ? client.joinById(id.value, { username: username })
-        : client.create('game', { username: username });
+    const connectPromise = id.value !== ""
+        ? client.joinById(id.value, {username: user.value.name})
+        : client.create('game', {username: user.value.name});
 
     connectPromise
         .then(r => {
@@ -52,7 +70,7 @@ function connect(username: string): void {
             lobby.value = true;
             modalActive.value = false;
             isHost.value = id.value === "";
-            listenEvents(room);
+            // listenEvents(room);
         })
         .catch(error => {
             console.error("Erreur de connexion:", error);
@@ -60,25 +78,8 @@ function connect(username: string): void {
         });
 }
 
-function listenEvents(room: any): void {
-    room.onStateChange.once((state: any) => {
-        players.value = state.players.values().toArray();
-    });
+function connect(username: string): void {
 
-    room.onStateChange((state: any) => {
-        players.value = state.players.values().toArray();
-        gameState.value = state.gameState;
-        countdown.value = state.countdown;
-    });
-}
-
-function startGame(): void {
-    room.send('start');
-}
-
-function toggleReady(): void {
-    room.send('toggle_ready');
-    isReady.value = !isReady.value;
 }
 
 onMounted(() => {
@@ -87,9 +88,6 @@ onMounted(() => {
     }
 });
 
-function copyRoomId(): void {
-    navigator.clipboard.writeText(roomId.value);
-}
 </script>
 
 <template>
@@ -100,41 +98,12 @@ function copyRoomId(): void {
     </div>
 
     <div v-else-if="lobby">
-        <div v-if="gameState === 'waiting'" class="waiting-message">
-            <p class="title is-1">En attente des autres joueurs</p>
-        </div>
 
-        <div v-if="gameState === 'countdown'" class="countdown-message">
-            <p class="title is-1">{{ countdown }}</p>
-        </div>
-
-        <Highlight @copy-room-id="copyRoomId">{{ roomId }}</Highlight>
-
-        <div class="connected-users">
-            <div class="subtitle is-3">
-                Joueurs en attente
-            </div>
-
-            <ConnectedUser v-for="player in players" :key="player.username">
-                {{ player.username }}
-                <span v-if="player.ready" class="tag is-success">Prêt</span>
-            </ConnectedUser>
-        </div>
-
-        <div class="start-game">
-            <button v-if="isHost" @click="startGame" class="button is-primary is-large">
-                Lancer la partie
-            </button>
-
-            <button @click="toggleReady" class="button is-primary is-large">
-                <span v-if="isReady">Pas prêt</span>
-                <span v-else>Prêt</span>
-            </button>
-        </div>
     </div>
 
     <section class="hero full-height" v-else>
         <UsernameModal :active="modalActive" @username="(username: string) => connect(username)" />
+        <CreateGameModal :active="createGameModalActive" @game-created="onGameCreated" />
 
         <div class="hero-body">
             <div class="full-hero">
@@ -149,14 +118,17 @@ function copyRoomId(): void {
                 </div>
 
                 <div class="hero-buttons">
-                    <button @click="openUsernameModal" class="button">
-                        Jouer
+                    <button @click="createGameModal" class="button">
+                        Créer une partie
+                    </button>
+
+                    <button @click="joinGameModal" class="button">
+                        Rejoindre une partie
                     </button>
                 </div>
             </div>
         </div>
     </section>
-
 </template>
 
 <style>
